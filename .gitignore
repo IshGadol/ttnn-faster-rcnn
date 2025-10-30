@@ -1,0 +1,24 @@
+# python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.env
+# notebooks
+.ipynb_checkpoints/
+# data & outputs
+data/*
+!data/.gitkeep
+reports/*
+!reports/.gitkeep
+# os/editor
+.DS_Store
+*.swp
+
+# run artifacts
+outputs/*
+!outputs/.gitkeep
+images/*
+!images/.gitkeep
