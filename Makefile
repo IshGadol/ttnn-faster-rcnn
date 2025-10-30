@@ -17,3 +17,6 @@ images-bench:
 
 images-crops:
 	python scripts/run_images_cpu.py --score-thresh 0.5 --save-crops --max-crops-per-image 50
+
+images-bench-dated:
+	python scripts/run_images_cpu.py --score-thresh 0.5 --log-path reports/infer_log_$(shell date +

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os, json, glob, csv, time, argparse
 import torch, torchvision
 import cv2
@@ -13,10 +14,12 @@ def ensure_dir(p):
     os.makedirs(p, exist_ok=True)
 
 def write_json(path, obj):
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w") as f:
         json.dump(obj, f, indent=2)
 
 def append_csv_row(csv_path, header, row):
+    os.makedirs(os.path.dirname(csv_path) or ".", exist_ok=True)
     new_file = not os.path.exists(csv_path)
     with open(csv_path, "a", newline="") as f:
         w = csv.writer(f)
@@ -44,14 +47,17 @@ def main():
     ap.add_argument("--nms-iou", type=float, default=0.5, help="NMS IoU threshold")
     ap.add_argument("--save-crops", action="store_true", help="Save cropped detections per image")
     ap.add_argument("--max-crops-per-image", type=int, default=50, help="Hard cap on crops saved per image")
+    ap.add_argument("--log-path", default="reports/infer_log.csv", help="CSV path for per-run logs")
     args = ap.parse_args()
 
     ensure_dir(args.out_dir)
     ensure_dir("reports")
 
-    img_paths = sorted(glob.glob(os.path.join(args.images_dir, "*.jpg")) +
-                       glob.glob(os.path.join(args.images_dir, "*.png")) +
-                       glob.glob(os.path.join(args.images_dir, "*.jpeg")))
+    img_paths = sorted(
+        glob.glob(os.path.join(args.images_dir, "*.jpg")) +
+        glob.glob(os.path.join(args.images_dir, "*.png")) +
+        glob.glob(os.path.join(args.images_dir, "*.jpeg"))
+    )
 
     if not img_paths:
         print(f"No images found in ./{args.images_dir} — add a few .jpg/.png and retry.")
@@ -59,9 +65,9 @@ def main():
 
     model = load_model()
 
-    # CSV log
-    csv_path = "reports/infer_log.csv"
-    header = ["image", "elapsed_ms", "detections_kept", "mean_score_kept", "min_score_kept", "max_score_kept", "crops_saved", "notes"]
+    csv_path = args.log_path
+    header = ["image", "elapsed_ms", "detections_kept", "mean_score_kept",
+              "min_score_kept", "max_score_kept", "crops_saved", "notes"]
 
     for p in img_paths:
         base = os.path.splitext(os.path.basename(p))[0]
@@ -82,7 +88,7 @@ def main():
             out = model(x)[0]
         elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
-        boxes = out.get("boxes", torch.empty((0,4)))
+        boxes = out.get("boxes", torch.empty((0, 4)))
         labels = out.get("labels", torch.empty((0,), dtype=torch.int64))
         scores = out.get("scores", torch.empty((0,)))
 
@@ -97,7 +103,7 @@ def main():
             k_boxes = boxes[keep_thr]
             k_scores = scores[keep_thr]
         else:
-            k_boxes = torch.empty((0,4))
+            k_boxes = torch.empty((0, 4))
             k_scores = torch.empty((0,))
 
         # JSON output (all NMS-filtered detections, not only thresholded)
@@ -114,10 +120,10 @@ def main():
 
         # Visualization for kept (thresholded) detections
         vis = img_bgr.copy()
-        for (x1,y1,x2,y2), s in zip(k_boxes.cpu().tolist(), k_scores.cpu().tolist()):
-            x1,y1,x2,y2 = map(int, [x1,y1,x2,y2])
-            cv2.rectangle(vis, (x1,y1), (x2,y2), (0,255,0), 2)
-            cv2.putText(vis, f"{s:.2f}", (x1, max(0,y1-5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1)
+        for (x1, y1, x2, y2), s in zip(k_boxes.cpu().tolist(), k_scores.cpu().tolist()):
+            x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
+            cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(vis, f"{s:.2f}", (x1, max(0, y1 - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
         vpath = os.path.join(args.out_dir, f"{base}_vis.jpg")
         cv2.imwrite(vpath, vis)
 
